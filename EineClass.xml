@@ -1,0 +1,11 @@
+<UI xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ ..\FrameXML\UI.xsd">
+	<Script file="EineClass.lua"/>
+	<Script file="EineClassConfig.lua"/>
+	<Script file="EineClassMinimapButton.lua"/>
+	<Texture name="EineClassMinimapIcon" file="Interface\AddOns\EineClass\Icons\Energy"/>
+  <Frame name="EineClass" enableMouse="false" parent="UIParent">
+    <Scripts>
+      <OnLoad>EineClass_OnLoad();</OnLoad>
+    </Scripts>
+  </Frame>
+</UI>
