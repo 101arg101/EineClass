@@ -112,15 +112,18 @@ end
 
 function ShadowboltEst(opts)
   --      base                           spellpower               coefficient buffs/debuffs
-  return ((510 + (BCS:GetSpellPower("Shadow") + BCS:GetSpellPower() * 6/7)) * Eine_ShadowMult())
+  local physical, holy, fire, nature, frost, shadow, arcane = GetSpellPower()
+  return ((510 + shadow * 6/7) * Eine_ShadowMult())
 end
 
 function ShadowburnEst(opts)
-  return ((487 + (BCS:GetSpellPower("Shadow") + BCS:GetSpellPower() * 3/7)) * Eine_ShadowMult())
+  local physical, holy, fire, nature, frost, shadow, arcane = GetSpellPower()
+  return ((487 + shadow * 3/7) * Eine_ShadowMult())
 end
 
 function SearingEst(opts)
-  return ((487 + (BCS:GetSpellPower("Fire") + BCS:GetSpellPower() * 3/7)) * Eine_FireMult())
+  local physical, holy, fire, nature, frost, shadow, arcane = GetSpellPower()
+  return ((487 + fire * 3/7) * Eine_FireMult())
 end
 
 -- TODO: track the spell you're casting if it has travel time and predict its damage
@@ -196,7 +199,7 @@ function Affliction(opts)
     local hasAgony = Cursive.curses:HasCurse("curse of agony", opts.targetGUID, 0)
     local hasCorrupt = Cursive.curses:HasCurse("corruption", opts.targetGUID, 1)
     local plentyAgony = Cursive.curses:HasCurse("curse of agony", opts.targetGUID, 9)
-    local plentyCorrupt = Cursive.curses:HasCurse("corruption", opts.targetGUID, 9)
+    local plentyCorrupt = Cursive.curses:HasCurse("corruption", opts.targetGUID, 7)
     if HasPetUI() and EineClassDB.petRotations and not _Eine.petAttackExceptions[opts.targetName] then
       local petData = GetUnitData("pet")
       if _Eine.summonSpellIds[petData.createdBySpell] then
@@ -206,27 +209,32 @@ function Affliction(opts)
       end
     end
     
-    if Eine_IsBuff("Spell_Shadow_Twilight") and GetTime() - _Eine.lastSB > 2 then
-      dbg("casting shadow bolt")
-      SpellStopCasting()
+    if Eine_IsBuff("Spell_Shadow_Twilight") and GetTime() - _Eine.lastSB > 1.5 then
+      dbg(dETA.." casting shadow bolt")
+      -- until nampower's IsCurrentCast glitch gets fixed, this is the only way to prevent you from interrupting your own dark harvest for shadow bolts. this means other warlocks can prevent you from utilizing nightfall
+      if not Eine_IsDebuff("Spell_Shadow_SoulLeech") then
+        SpellStopCasting()
+      end
       CastSpellByName("shadow bolt")
       _Eine.lastSB = GetTime()
     end
     
-    if dhcd and ((dETA <= 7 and (plentyAgony or plentyCorrupt)) or (dETA >= 35 and plentyAgony and plentyCorrupt)) then
-      dbg("casting dark harvest")
-      CastSpellByName("dark harvest")
+    if ((dETA <= 6.5 and (plentyAgony or plentyCorrupt)) or (dETA >= 35 and plentyAgony and plentyCorrupt)) then
+      dbg(dETA.." casting dark harvest")
+      CastSpellByName("dark harvest") -- casts dark harvest as a top priority for vanilla code without nampower
+      CastSpellByName("drain soul") -- casts drain soul if dark harvest is on cooldown
+      CastSpellByName("dark harvest") -- if user us running nampower, the last spell here will be queued and cast instead of any spells before it
     elseif dETA <= 5 then
-      dbg("casting drain soul")
+      dbg(dETA.." casting drain soul")
       CastSpellByName("drain soul")
     elseif not hasCurse or not hasAgony then
-      dbg("casting curse")
+      dbg(dETA.." casting curse")
       CastSpellByName(EineClassDB.curse)
     elseif not hasCorrupt then
-      dbg("casting corruption")
+      dbg(dETA.." casting corruption")
       CastSpellByName("corruption")
     else
-      dbg("casting drain soul 2")
+      dbg(dETA.." casting drain soul 2")
       CastSpellByName("drain soul")
     end
   end

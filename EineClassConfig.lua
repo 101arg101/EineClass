@@ -1,7 +1,7 @@
 -- Saved variables
 EineClassDB = EineClassDB or {
   minimapPos = 220,
-  debug = true,
+  debug = false,
   autoTargetNearest = true,
   petRotations = true,
   curse = "Curse of Agony",
@@ -38,7 +38,14 @@ local panelsLayout = {
   DRUID = {
     {fieldType = "checkbox", name = "OOCStealth", label = "Stealth when out of combat", height = 25},
     {fieldType = "checkbox", name = "smallBleed", label = "Rip at 1 combo point instead of 5", height = 25},
-  }
+  },
+  PRIEST = {},
+  ROGUE = {},
+  WARRIOR = {},
+  HUNTER = {},
+  PALADIN = {},
+  MAGE = {},
+  SHAMAN = {}
 }
 
 local function CreateIconRow(iconTable, DBName, vert, panel)

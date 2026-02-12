@@ -1,4 +1,4 @@
-local FeralBear, FeralSustain, FeralFury, FeralBleed, FeralNoBleed
+local FeralBear, FeralBleed, FeralNoBleed
 
 _Eine.init.DRUID = function(opts)
   _Eine.subcmds["feral bear"] = {
@@ -75,6 +75,9 @@ _Eine.init.DRUID = function(opts)
     end
   end
   
+  -- 757.8 potent venom 2.6%
+  -- 756.2 hoj ?%
+  -- 732 whip
   local _, _, _, _, natShifterCurrRank, _ = GetTalentInfo(1, 8)
   local _, _, _, _, ferocityCurrRank, _ = GetTalentInfo(2, 1)
   local _, intelligence = UnitStat("player", 4)
@@ -110,18 +113,125 @@ function FeralBleed(opts)
   opts.energy, opts.mana = UnitMana("player")
   opts.isReshiftable = _Eine.shiftCost <= opts.mana
   local isStealth = Eine_IsBuff("Ability_Ambush")
+  local isFury = isBuff("Ability_Mount_JungleTiger")
+  local furyBonus = 0
+  if isFury then
+    furyBonus = 50
+  end
   if (not UnitAffectingCombat("player") and not isStealth and EineClassDB.OOCStealth and GetSpellCooldown("prowl") == 0) then
     dbg("casting prowl")
     CastSpellByName("prowl")
   end
   
-  if (not isBuff("Ability_Mount_JungleTiger")) then
-    if (opts.energy < 40 and opts.isReshiftable) then
-      dbg("casting reshift")
+  if not isFury then
+    if (opts.energy < 30 and opts.isReshiftable) then
+      dbg("casting reshift", GetSpellCooldown("reshift") == 0)
       CastSpellByName("reshift")
     else
       dbg("casting tigers fury")
       CastSpellByName("tiger's fury")
+      _Eine.lastFury = opts.time
+    end
+  elseif not _Eine.lastFury or opts.time - _Eine.lastFury > 9 then
+    if (opts.energy < 30 and opts.isReshiftable) then
+      dbg("casting early reshift", GetSpellCooldown("reshift") == 0)
+      CastSpellByName("reshift")
+    end
+  end
+  
+  if opts.isTarget then
+    opts.pts = GetComboPoints()
+    opts.isClearcast = isBuff("Spell_Shadow_ManaBurn")
+    local baseAP, posBuffAP, negBuffAP = UnitAttackPower("player")
+    local ap = baseAP + posBuffAP + negBuffAP
+    if (opts.isClearcast) then
+      opts.fbAdditionalEnergy = opts.energy
+    else
+      opts.fbAdditionalEnergy = opts.energy - 35
+    end
+    local _, _, _, _, aggressionCurrRank, _ = GetTalentInfo(2, 2)
+    local isSunder, sunderCount = isDebuff("Ability_Warrior_Sunder")
+    local isFF = isDebuff("Spell_Nature_FaerieFire")
+    local isReckless = isDebuff("Spell_Shadow_UnholyStrength")
+    local expectedArmor = 50*UnitLevel("target")
+    if expectedArmor < 0 then
+      expectedArmor = 3731
+    end
+    expectedArmor = expectedArmor - sunderCount*450
+    if (isFF) then
+      expectedArmor = expectedArmor - 505
+    end
+    
+    if (isReckless) then
+      expectedArmor = expectedArmor - 640
+    end
+    
+    -- rank 6 ferocious bite has a 2.7 damage per energy ratio, 52 flat damage, and 147 damage per combo point
+    opts.fbDMG = math.floor(
+      (1 - expectedArmor/ (expectedArmor + 400 + 85 * UnitLevel("player"))) * (ap * 0.1526 + opts.fbAdditionalEnergy * 2.7 + opts.pts * 147 + 52 + furyBonus) * (1 + aggressionCurrRank * .03)
+    )
+    
+    if (_Eine.genesisSet == 5) then
+      opts.fbDMG = opts.fbDMG*1.15
+    end
+    
+    local fbETA = Eine_DeathETA(opts.fbDMG)
+    local dETA = Eine_DeathETA()
+    local hasRip = Cursive.curses:HasCurse("rip", opts.targetGUID, 0)
+    
+    if isStealth then
+      dbg("casting pounce")
+      CastSpellByName("pounce")
+    end
+    
+    if (opts.pts > 0 and fbETA <= 1) or (opts.pts >= 5 and hasRip) then
+      dbg("casting ferocious bite", GetSpellCooldown("ferocious bite") == 0 and (opts.energy >= 35 or opts.isClearcast))
+      CastSpellByName("ferocious bite")
+    elseif ((EineClassDB.smallBleed and opts.pts > 0 and not hasRip) or (opts.pts >= 5 and not hasRip)) and dETA >= 15 then
+      dbg("casting rip", GetSpellCooldown("rip") == 0 and (opts.energy >= 30 or opts.isClearcast))
+      CastSpellByName("rip")
+    elseif not Cursive.curses:HasCurse("rake", opts.targetGUID, 0) and dETA >= 6 then
+      dbg("casting rake", GetSpellCooldown("rake") == 0 and (opts.energy >= 32 or opts.isClearcast))
+      CastSpellByName("rake")
+    elseif opts.isBehind then
+      dbg("casting shred", GetSpellCooldown("shred") == 0 and (opts.energy >= 45 or opts.isClearcast))
+      CastSpellByName("shred")
+    else
+      dbg("casting claw", GetSpellCooldown("claw") == 0 and (opts.energy >= 37 or opts.isClearcast))
+      CastSpellByName("claw")
+    end
+  end
+end
+
+function FeralNoBleed(opts)
+  opts.energy, opts.mana = UnitMana("player")
+  opts.isReshiftable = _Eine.shiftCost <= opts.mana
+  local isStealth = Eine_IsBuff("Ability_Ambush")
+  local isFury = isBuff("Ability_Mount_JungleTiger")
+  local isFrenzy = isBuff("Ability_GhoulFrenzy")
+  local furyBonus = 0
+  if isFury then
+    furyBonus = 50
+  end
+  if (not UnitAffectingCombat("player") and not isStealth and EineClassDB.OOCStealth and GetSpellCooldown("prowl") == 0) then
+    dbg("casting prowl")
+    CastSpellByName("prowl")
+  end
+  
+  -- 560
+  if not isFury then
+    if (opts.energy < 30 and opts.isReshiftable) then
+      dbg("casting reshift", GetSpellCooldown("reshift") == 0)
+      CastSpellByName("reshift")
+    else
+      dbg("casting tigers fury")
+      CastSpellByName("tiger's fury")
+      _Eine.lastFury = opts.time
+    end
+  elseif not _Eine.lastFury or opts.time - _Eine.lastFury > 6 then
+    if (opts.energy < 30 and opts.isReshiftable) then
+      dbg("casting early reshift", GetSpellCooldown("reshift") == 0)
+      CastSpellByName("reshift")
     end
   end
   
@@ -154,7 +264,7 @@ function FeralBleed(opts)
     
     -- rank 6 ferocious bite has a 2.7 damage per energy ratio, 52 flat damage, and 147 damage per combo point
     opts.fbDMG = math.floor(
-      (1 - expectedArmor/ (expectedArmor + 400 + 85 * UnitLevel("player"))) * (ap * 0.1526 + opts.fbAdditionalEnergy * 2.7 + opts.pts * 147 + 52) * (1 + aggressionCurrRank * .03)
+      (1 - expectedArmor/ (expectedArmor + 400 + 85 * UnitLevel("player"))) * (ap * 0.1526 + opts.fbAdditionalEnergy * 2.7 + opts.pts * 147 + 52 + furyBonus) * (1 + aggressionCurrRank * .03)
     )
     
     if (_Eine.genesisSet == 5) then
@@ -163,25 +273,21 @@ function FeralBleed(opts)
     
     local fbETA = Eine_DeathETA(opts.fbDMG)
     local dETA = Eine_DeathETA()
+    local hasRip = Cursive.curses:HasCurse("rip", opts.targetGUID, 0)
+    
     if isStealth then
-      dbg("casting pounce")
-      CastSpellByName("pounce")
+      dbg("casting ravage")
+      CastSpellByName("ravage")
     end
     
-    if opts.pts > 0 and fbETA <= 1 or opts.pts >= 5 then
-      dbg("casting ferocious bite")
+    if (opts.pts > 0 and fbETA <= 1) or opts.pts >= 5 then
+      dbg("casting ferocious bite", GetSpellCooldown("ferocious bite") == 0 and (opts.energy >= 35 or opts.isClearcast))
       CastSpellByName("ferocious bite")
-    elseif ((EineClassDB.smallBleed and opts.pts > 0) or opts.pts >= 5) and not Cursive.curses:HasCurse("rip", opts.targetGUID, 0) and dETA >= 15 then
-      dbg("casting rip")
-      CastSpellByName("rip")
-    elseif not Cursive.curses:HasCurse("rake", opts.targetGUID, 0) and dETA >= 8 then
-      dbg("casting rake")
-      CastSpellByName("rake")
     elseif opts.isBehind then
-      dbg("casting shred")
+      dbg("casting shred", GetSpellCooldown("shred") == 0 and (opts.energy >= 45 or opts.isClearcast))
       CastSpellByName("shred")
     else
-      dbg("casting claw")
+      dbg("casting claw", GetSpellCooldown("claw") == 0 and (opts.energy >= 37 or opts.isClearcast))
       CastSpellByName("claw")
     end
   end

@@ -74,6 +74,12 @@ function EINE_SLASH(subcmd)
       DEFAULT_CHAT_FRAME:AddMessage("      ".._Color.w..subVal.description.."|r")
     end
     DEFAULT_CHAT_FRAME:AddMessage(_Color.c.."•••••|r")
+  elseif (subcmd == "config") then
+    if EineClassConfigFrame:IsVisible() then
+      EineClassConfigFrame:Hide()
+    else
+      EineClassConfigFrame:Show()
+    end
   elseif (_Eine.subcmds[subcmd]) then
     opts.time = GetTime()
     opts.isTarget, opts.targetGUID = UnitExists("target")
@@ -99,12 +105,14 @@ function EINE_SLASH(subcmd)
     opts.manaMax = UnitManaMax("player")
     opts.energy, opts.mana = UnitMana("player")
     opts.rage = opts.energy
+    if not opts.mana then opts.mana = opts.energy end
     
     if EineClassDB.healthstone and opts.hp/opts.hpMax < .25 then
-      dbg("using healthstone")
+      dbg("attempt healthstone")
       for b = 0, 4 do
         for s = 1, GetContainerNumSlots(b) do
           if GetContainerItemLink(b,s) and (string.find(GetContainerItemLink(b,s),"Healthstone", 1, true)) then
+            dbg("using healthstone")
             UseContainerItem(b,s)
             s = GetContainerNumSlots(b)
             b = 4
@@ -114,10 +122,11 @@ function EINE_SLASH(subcmd)
     end
     
     if EineClassDB.healthPot and opts.hp/opts.hpMax < .25 then
-      dbg("using health pot")
+      dbg("attempt health pot")
       for b = 0, 4 do
         for s = 1, GetContainerNumSlots(b) do
           if GetContainerItemLink(b,s) and (string.find(GetContainerItemLink(b,s),"Healing Potion", 1, true)) then
+            dbg("using health pot")
             UseContainerItem(b,s)
             s = GetContainerNumSlots(b)
             b = 4
@@ -126,11 +135,12 @@ function EINE_SLASH(subcmd)
       end
     end
     
-    if EineClassDB.manaPot and opts.hp/opts.hpMax < .1 then
-      dbg("using mana pot")
+    if EineClassDB.manaPot and opts.mana/opts.manaMax < .1 then
+      dbg("attempt mana pot")
       for b = 0, 4 do
         for s = 1, GetContainerNumSlots(b) do
           if GetContainerItemLink(b,s) and (string.find(GetContainerItemLink(b,s),"Mana Potion", 1, true)) then
+            dbg("using mana pot")
             UseContainerItem(b,s)
             s = GetContainerNumSlots(b)
             b = 4
@@ -150,6 +160,7 @@ function EINE_SLASH(subcmd)
     DEFAULT_CHAT_FRAME:AddMessage(" ")
     DEFAULT_CHAT_FRAME:AddMessage(_Color.w.."Commands:|r")
     DEFAULT_CHAT_FRAME:AddMessage(_Color.w.."  /eine reload|r ".._Color.c.."Reloads variables. Useful when you change equipment")
+    DEFAULT_CHAT_FRAME:AddMessage(_Color.w.."  /eine config|r ".._Color.c.."Displays settings menu")
     DEFAULT_CHAT_FRAME:AddMessage(_Color.w.."  /eine list|r ".._Color.c.."List available rotations to make macros with")
     DEFAULT_CHAT_FRAME:AddMessage(_Color.w.."  /eine help|r ".._Color.c.."Display this text")
     DEFAULT_CHAT_FRAME:AddMessage(_Color.c.."•••••|r")
@@ -226,16 +237,16 @@ function Eine_IsBuff(texture)
 
   while not (g(i) == -1) do
     if (GetPlayerBuffTexture(g(i)) == "Interface\\Icons\\"..texture) then
-      return true
+      return 1
     end
     i = i + 1
   end
   return false
 end
 
-function dbg(out)
-  if EineClassDB.debug then
-    print(_Color.c.."debug ("..string.sub(tostring(GetTime()*1000), 5).."): |r"..tostring(out))
+function dbg(out, condition)
+  if EineClassDB.debug and condition ~= false then
+    print(_Color.c..string.sub(tostring(GetTime()*1000), 3, 5)..": |r"..tostring(out))
   end
 end
 
