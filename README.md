@@ -12,12 +12,13 @@ Author: 101arg101 (Fryn on Nordanaar)
 - Install [ShaguDPS](https://github.com/shagu/ShaguDPS)
 
 # Commands
-<code>
+```
 /eine reload           | reloads setup variables
+/eine config           | shows settings menu
 /eine list             | lists rotations available to your class
 /eine help             | lists available commands
 /eine name of rotation | executes a one-button rotation
-</code>
+```
 
 # Usage
 To use any supported rotation, create a macro (run the command /macro or open up the macro window from the escape menu) with the same format as below
